@@ -1,39 +1,33 @@
 ﻿using System.Linq;
 using System.Text;
 
-var state = new State().Next().Skip(1).FirstOrDefault();
-TreeStateNode tree = new TreeStateNode();
-tree.Value = state;
-tree.Expand();
+State state = new State();
+state = state.Next().FirstOrDefault();
+state = state.Next().FirstOrDefault();
+Game game = new Game(state);
 
-Console.WriteLine(state);
-Console.WriteLine(tree.WinState);
+while (true)
+{
+    Console.WriteLine(game.Tree.Root.WinState);
+    Console.WriteLine(game.Current);
+    Console.ReadKey(true);
+    game.AIPlay();
+}
 
 public class Game
 {
-    public State Current { get; set; }
+    public Game(State state)
+    {
+        Tree = new TreeState(state);
+        Tree.Expand();
+    }
+
+    public State Current => Tree.Root.Value;
+    public TreeState Tree { get; set; }
 
     public void AIPlay()
     {
-        Queue<State> queue = new Queue<State>();
-        queue.Enqueue(Current);
-
-        while (queue.Count > 0)
-        {
-            var crr = queue.Dequeue();
-
-            if (crr.HasEnd)
-            {
-                this.Current = crr;
-                return;
-            }
-
-            foreach (var next in crr.Next())
-            {
-                queue.Enqueue(next);
-            }
-
-        }
+        Tree.PlayBest();
     }
 }
 
@@ -131,7 +125,52 @@ public struct State
 
 public class TreeState
 {
-    
+    public TreeState(State root)
+    {
+        TreeStateNode node = new TreeStateNode();
+        node.Value = root;
+        this.Root = node;
+    }
+
+    public TreeStateNode Root { get; set; }
+
+    public void Expand()
+    {
+        Root.Expand();
+    }
+
+    public void PlayBest()
+    {
+        var xPlay = Root.Value.XPlays;
+        var searchedValue = xPlay ? 1 : -1;
+        var winnerPlay = Root.Children
+            .FirstOrDefault(
+                c => c.WinState == searchedValue);
+        if (winnerPlay != null)
+        {
+            this.Root = winnerPlay;
+            return;
+        }
+
+        var drawPlay = Root.Children
+            .FirstOrDefault(
+                c => c.WinState == 0);
+        if (drawPlay != null)
+        {
+            this.Root = drawPlay;
+            return;
+        }
+
+        var anyPlay = Root.Children
+            .FirstOrDefault();
+        if (anyPlay != null)
+        {
+            this.Root = anyPlay;
+            return;
+        }
+        //End game
+        return;
+    }
 }
 
 public class TreeStateNode
@@ -169,21 +208,23 @@ public class TreeStateNode
         }
         else
         {
-            if (Value.XPlays && Children.Any(c => c.WinState == 1))
+            if (Children.Count > 0 &&
+                Children.All(c => c.WinState == -1))
+            {
+                WinState = -1;
+            }
+            else if (Children.Count > 0 && 
+                Children.All(c => c.WinState == 1))
+            {
+                WinState = 1;
+            }
+            else if (Value.XPlays && Children.Any(c => c.WinState == 1))
             {
                 WinState = 1;
             }
             else if (!Value.XPlays && Children.Any(c => c.WinState == -1))
             {
                 WinState = -1;
-            }
-            else if (Value.XPlays && Children.All(c => c.WinState == -1))
-            {
-                WinState = -1;
-            }
-            else if (!Value.XPlays && Children.All(c => c.WinState == 1))
-            {
-                WinState = 1;
             }
             else
             {
